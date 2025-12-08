@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <!-- תמונת הארוחה -->
+    <ImageView
+        android:id="@+id/imgMealItem"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="Meal Image" />
+
+    <!-- שם הארוחה -->
+    <TextView
+        android:id="@+id/tvMealName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ארוחה X"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:paddingTop="8dp" />
+
+    <!-- חלבון וקלוריות כולל -->
+    <TextView
+        android:id="@+id/tvMealInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="חלבון: X גרם | קלוריות: Y"
+        android:paddingTop="4dp" />
+
+    <!-- רשימת רכיבים ומשקל כל אחד -->
+    <LinearLayout
+        android:id="@+id/layoutComponents"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="4dp" />
+
+</LinearLayout>
