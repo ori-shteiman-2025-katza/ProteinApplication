@@ -22,15 +22,16 @@
             android:exported="false" />
         <activity
             android:name=".AuthActivity"
-            android:exported="false" />
-        <activity
-            android:name=".MainDashboardActivity"
-            android:exported="true">
+            android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".MainDashboardActivity"
+            android:exported="false">
         </activity>
     </application>
 

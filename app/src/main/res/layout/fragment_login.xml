@@ -21,7 +21,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="אימייל"
-        android:text="orishte2008@gmail.com"
+        android:text="orish2008@gmail.com"
         android:inputType="textEmailAddress"
         android:padding="12dp" />
 

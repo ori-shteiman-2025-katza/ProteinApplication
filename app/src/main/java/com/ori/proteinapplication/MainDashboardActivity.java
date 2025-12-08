@@ -197,7 +197,7 @@ public class MainDashboardActivity extends AppCompatActivity {
             String prompt = "נתח את התמונה והחזר אך ורק JSON תקין, ללא טקסט נוסף או הסברים.\n" +
                     "JSON חייב להיות במבנה הבא:\n" +
                     "{\n" +
-                    "  \"ingredients\": [\n" +
+                    "  \"components\": [\n" +
                     "    {\n" +
                     "      \"name\": \"string\",\n" +
                     "      \"weight\": number,\n" +
@@ -227,13 +227,23 @@ public class MainDashboardActivity extends AppCompatActivity {
                         progressAi.setVisibility(View.GONE);
                         try {
 
-                            List<MealComponent> comps = parseMealJson(response);
+                            String cleanJson = response
+                                    .replace("```json", "")
+                                    .replace("```", "")
+                                    .trim();
+
+
+                            List<MealComponent> comps = parseMealJson(cleanJson);
                             if (comps.isEmpty()) {
                                 Toast.makeText(MainDashboardActivity.this,
                                         "AI לא זיהה רכיבים — צלם מחדש או כתוב ידנית.",
                                         Toast.LENGTH_LONG).show();
                                 return;
                             }
+
+
+
+
 
                             showComponentsDialog(comps);
                         } catch (Exception e) {

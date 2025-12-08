@@ -3,6 +3,7 @@ package com.ori.proteinapplication;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Toast;
 
 import com.google.ai.client.generativeai.GenerativeModel;
 import com.google.ai.client.generativeai.type.Content;
@@ -37,7 +38,7 @@ public class GeminiManager {
         // Constructor is private to prevent instantiation from outside
         // init
         gemini = new GenerativeModel(
-                "gemini-2.0-flash-lite",  // model
+                "gemini-2.5-flash-lite",     // model
                 API_KEY                             // API_KEY
         );
         mainHandler = new Handler(Looper.getMainLooper());
