@@ -15,7 +15,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
-public class editInfo extends AppCompatActivity {
+public class EditInfoActivity extends AppCompatActivity {
 
     private EditText etWeight, etHeight, etAge, etWorkoutsPerWeek;
     private Spinner spGender, spIntensity;
@@ -108,7 +108,7 @@ public class editInfo extends AppCompatActivity {
                         Toast.makeText(this, "הנתונים נשמרו בהצלחה!", Toast.LENGTH_SHORT).show();
 
                         // מעבר אוטומטי ל-MainDashboardActivity
-                        Intent intent = new Intent(editInfo.this, MainDashboardActivity.class);
+                        Intent intent = new Intent(EditInfoActivity.this, MainDashboardActivity.class);
                         startActivity(intent);
                         finish(); // סוגר את editInfo כדי שלא יחזור אליו בלחיצה על חזור
                     })

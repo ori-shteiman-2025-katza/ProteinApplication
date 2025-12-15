@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "789141737178",
+    "firebase_url": "https://proteinapplication-default-rtdb.firebaseio.com",
     "project_id": "proteinapplication",
     "storage_bucket": "proteinapplication.firebasestorage.app"
   },
@@ -15,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCHAA67BygBx0WROlcYUEp5hk3aD4d0qS0"
+          "current_key": "AIzaSyCYOxCNU8FjAZO4OEMWeqvGpC8cLCyrYFk"
         }
       ],
       "services": {

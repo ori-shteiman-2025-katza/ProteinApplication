@@ -27,7 +27,7 @@ public class GeminiManager {
 
     // API_KEY: https://ai.google.dev/gemini-api/docs/api-key
     // for git: get ignore
-    private static final String API_KEY = "AIzaSyBWQPhUFZS1YY3RCdyaGrPLG7Eb0rUuko4";
+    private static final String API_KEY = "AIzaSyCYOxCNU8FjAZO4OEMWeqvGpC8cLCyrYFk";
     private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(30);
 
     private static GeminiManager instance;

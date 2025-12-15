@@ -110,7 +110,7 @@ public class MainDashboardActivity extends AppCompatActivity {
 
         btnUploadMeal.setOnClickListener(v -> openFileChooser());
         btnViewMeals.setOnClickListener(v -> startActivity(new Intent(this, MealHistoryActivity.class)));
-        btnEditInfo.setOnClickListener(v -> startActivity(new Intent(this, editInfo.class)));
+        btnEditInfo.setOnClickListener(v -> startActivity(new Intent(this, EditInfoActivity.class)));
     }
 
     private void loadUserGoals() {

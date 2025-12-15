@@ -26,9 +26,5 @@ public class AuthActivity extends AppCompatActivity {
                 .commit();
     }
 
-    public void showLoginFragment() {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragmentContainer, new LoginFragment())
-                .commit();
-    }
+
 }

@@ -18,7 +18,7 @@
             android:name=".MealHistoryActivity"
             android:exported="false" />
         <activity
-            android:name=".editInfo"
+            android:name=".EditInfoActivity"
             android:exported="false" />
         <activity
             android:name=".AuthActivity"
