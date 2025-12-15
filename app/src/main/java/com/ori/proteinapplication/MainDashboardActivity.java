@@ -281,14 +281,22 @@ public class MainDashboardActivity extends AppCompatActivity {
         container.setPadding(24,24,24,24);
         scroll.addView(container);
 
-        // totals
         final TextView tvTotals = new TextView(this);
         tvTotals.setTextSize(16f);
         tvTotals.setPadding(8,16,8,8);
 
         final List<TextView> perCompTv = new ArrayList<>();
 
-        // build rows
+        // נשמור את הערכים המקוריים לכל רכיב
+        final List<Float> originalWeights = new ArrayList<>();
+        final List<Float> originalProteins = new ArrayList<>();
+        final List<Float> originalCalories = new ArrayList<>();
+        for (MealComponent comp : components) {
+            originalWeights.add(comp.getWeight());
+            originalProteins.add(comp.getProtein());
+            originalCalories.add(comp.getCalories());
+        }
+
         for (int i = 0; i < components.size(); i++) {
             MealComponent comp = components.get(i);
 
@@ -312,11 +320,9 @@ public class MainDashboardActivity extends AppCompatActivity {
             tvInfo.setTextSize(14f);
             row.addView(tvInfo);
 
-            // initial values
             tvInfo.setText(String.format(Locale.getDefault(),
                     "חלבון: %.1fg | קלוריות: %.0f kcal",
                     comp.getProtein(), comp.getCalories()));
-
             perCompTv.add(tvInfo);
 
             final int idx = i;
@@ -324,30 +330,37 @@ public class MainDashboardActivity extends AppCompatActivity {
             etWeight.addTextChangedListener(new TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
                 @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-                @Override public void afterTextChanged(Editable s) {
-
-                    float newW = comp.getWeight();
+                @Override
+                public void afterTextChanged(Editable s) {
+                    float newWeight = components.get(idx).getWeight();
                     try {
                         String txt = s.toString().trim();
-                        if (!txt.isEmpty()) newW = Float.parseFloat(txt);
+                        if (!txt.isEmpty()) newWeight = Float.parseFloat(txt);
                     } catch (Exception ignored) {}
 
-                    // update the component weight
-                    components.get(idx).setWeight(newW);
+                    // עדכון משקל
+                    components.get(idx).setWeight(newWeight);
 
-                    // refresh per-component text
+                    // חישוב חלבון וקלוריות בהתאם לפרופורציה
+                    float origW = originalWeights.get(idx);
+                    float origP = originalProteins.get(idx);
+                    float origC = originalCalories.get(idx);
+
+                    components.get(idx).setProtein(origP / origW * newWeight);
+                    components.get(idx).setCalories(origC / origW * newWeight);
+
+                    // עדכון התצוגה של הרכיב
                     MealComponent c = components.get(idx);
                     perCompTv.get(idx).setText(String.format(Locale.getDefault(),
                             "חלבון: %.1fg | קלוריות: %.0f kcal",
                             c.getProtein(), c.getCalories()));
 
-                    // refresh totals
+                    // עדכון טוטל
                     double totalP = 0, totalC = 0;
                     for (MealComponent cc : components) {
                         totalP += cc.getProtein();
                         totalC += cc.getCalories();
                     }
-
                     tvTotals.setText(String.format(Locale.getDefault(),
                             "סה״כ: חלבון %.1f גרם | קלוריות %.0f kcal",
                             totalP, totalC));
@@ -357,7 +370,7 @@ public class MainDashboardActivity extends AppCompatActivity {
             container.addView(row);
         }
 
-        // initial totals
+        // טוטל התחלי
         double initP = 0, initC = 0;
         for (MealComponent c : components) {
             initP += c.getProtein();
@@ -366,7 +379,6 @@ public class MainDashboardActivity extends AppCompatActivity {
         tvTotals.setText(String.format(Locale.getDefault(),
                 "סה״כ: חלבון %.1f גרם | קלוריות %.0f kcal",
                 initP, initC));
-
         container.addView(tvTotals);
 
         builder.setView(scroll);
@@ -377,16 +389,13 @@ public class MainDashboardActivity extends AppCompatActivity {
                 totalP += c.getProtein();
                 totalC += c.getCalories();
             }
-
-            saveMealAndUpdateDaily(
-                    (int) Math.round(totalP),
-                    (int) Math.round(totalC)
-            );
+            saveMealAndUpdateDaily((int)Math.round(totalP), (int)Math.round(totalC));
         });
 
         builder.setNegativeButton("בטל", null);
         builder.show();
     }
+
 
     // שמירה ל-Firestore ועדכון ה-realtime של currentProtein/currentCalories
     private void saveMealAndUpdateDaily(int protein, int calories) {
