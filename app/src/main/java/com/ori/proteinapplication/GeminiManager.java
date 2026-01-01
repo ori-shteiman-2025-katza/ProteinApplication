@@ -3,7 +3,7 @@ package com.ori.proteinapplication;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
+import android.util.Log;
 
 import com.google.ai.client.generativeai.GenerativeModel;
 import com.google.ai.client.generativeai.type.Content;
@@ -27,7 +27,7 @@ public class GeminiManager {
 
     // API_KEY: https://ai.google.dev/gemini-api/docs/api-key
     // for git: get ignore
-    private static final String API_KEY = "AIzaSyCYOxCNU8FjAZO4OEMWeqvGpC8cLCyrYFk";
+    private static final String API_KEY = BuildConfig.GEMINI_API_KEY;
     private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(30);
 
     private static GeminiManager instance;
@@ -36,6 +36,13 @@ public class GeminiManager {
 
     private GeminiManager() {
         // Constructor is private to prevent instantiation from outside
+
+        Log.d("GEMINI", "key len=" + API_KEY.length());
+        Log.d("GEMINI", "key prefix=" + (API_KEY.length() >= 6
+                ? API_KEY.substring(0, 6)
+                : API_KEY));
+
+
         // init
         gemini = new GenerativeModel(
                 "gemini-2.5-flash-lite",     // model
