@@ -1,6 +1,5 @@
 package com.ori.proteinapplication;
 
-
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
@@ -11,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -35,6 +35,13 @@ public class MealHistoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_meal_history);
 
+        // בדיקה שהמשתמש מחובר
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            Toast.makeText(this, "משתמש לא מחובר", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         recyclerMeals = findViewById(R.id.recyclerMeals);
         recyclerMeals.setLayoutManager(new LinearLayoutManager(this));
 
@@ -49,28 +56,39 @@ public class MealHistoryActivity extends AppCompatActivity {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        db.collection("Users").document(uid).collection("Meals")
+        db.collection("Users")
+                .document(uid)
+                .collection("Meals")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     mealList.clear();
                     for (DocumentSnapshot doc : queryDocumentSnapshots) {
                         Map<String, Object> data = doc.getData();
-                        if (data != null) {
-                            String base64Image = (String) data.get("image");
-                            int protein = ((Long) data.get("protein")).intValue();
-                            int calories = ((Long) data.get("calories")).intValue();
+                        if (data == null) continue;
 
-                            // רכיבים ומשקלים (אם שמרתם אותם כמפה ב-Firestore)
-                            Map<String, Double> components = (Map<String, Double>) data.get("components");
+                        String base64Image = (String) data.get("image");
 
-                            mealList.add(new Meal(base64Image, protein, calories, components));
-                        }
+                        Number proteinNum = (Number) data.get("protein");
+                        Number caloriesNum = (Number) data.get("calories");
+
+                        int protein = proteinNum != null ? proteinNum.intValue() : 0;
+                        int calories = caloriesNum != null ? caloriesNum.intValue() : 0;
+
+                        Map<String, Double> components = (Map<String, Double>) data.get("components");
+
+                        mealList.add(new Meal(base64Image, protein, calories, components));
                     }
+
+                    if (mealList.isEmpty()) {
+                        Toast.makeText(this, "אין ארוחות עדיין", Toast.LENGTH_SHORT).show();
+                    }
+
                     adapter.notifyDataSetChanged();
                 })
                 .addOnFailureListener(e -> {
-                    // אפשר להוסיף Toast אם רוצים
+                    Toast.makeText(this, "שגיאה בטעינת הארוחות", Toast.LENGTH_SHORT).show();
+                    e.printStackTrace();
                 });
     }
 
@@ -120,6 +138,7 @@ public class MealHistoryActivity extends AppCompatActivity {
         }
 
         private Bitmap decodeBase64(String base64) {
+            if (base64 == null) return null;
             try {
                 byte[] decodedBytes = Base64.decode(base64, Base64.DEFAULT);
                 return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);

@@ -389,7 +389,7 @@ public class MainDashboardActivity extends AppCompatActivity {
                 totalP += c.getProtein();
                 totalC += c.getCalories();
             }
-            saveMealAndUpdateDaily((int)Math.round(totalP), (int)Math.round(totalC));
+            saveMealAndUpdateDaily((int)Math.round(totalP), (int)Math.round(totalC),components);
         });
 
         builder.setNegativeButton("בטל", null);
@@ -398,7 +398,7 @@ public class MainDashboardActivity extends AppCompatActivity {
 
 
     // שמירה ל-Firestore ועדכון ה-realtime של currentProtein/currentCalories
-    private void saveMealAndUpdateDaily(int protein, int calories) {
+    private void saveMealAndUpdateDaily(int protein, int calories,List<MealComponent> components) {
         if (uid == null || firestoreDb == null) {
             Toast.makeText(this, "משתמש לא מחובר", Toast.LENGTH_SHORT).show();
             return;
@@ -426,6 +426,13 @@ public class MainDashboardActivity extends AppCompatActivity {
         meal.put("protein", protein);
         meal.put("calories", calories);
         meal.put("timestamp", System.currentTimeMillis());
+// components -> Map<String, Double>
+        Map<String, Double> componentsMap = new HashMap<>();
+        for (MealComponent c : components) {
+            componentsMap.put(c.getName(), (double) c.getWeight());
+        }
+
+        meal.put("components", componentsMap);
 
         firestoreDb.collection("Users").document(uid).collection("Meals")
                 .add(meal)
