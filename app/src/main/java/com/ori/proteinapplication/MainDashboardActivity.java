@@ -1,9 +1,12 @@
 package com.ori.proteinapplication;
 
 
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -111,7 +114,51 @@ public class MainDashboardActivity extends AppCompatActivity {
         btnUploadMeal.setOnClickListener(v -> openFileChooser());
         btnViewMeals.setOnClickListener(v -> startActivity(new Intent(this, MealHistoryActivity.class)));
         btnEditInfo.setOnClickListener(v -> startActivity(new Intent(this, EditInfoActivity.class)));
+
+        scheduleDailyReset();
     }
+
+    private void scheduleDailyReset() {
+
+        SharedPreferences prefs =
+                getSharedPreferences("app_prefs", MODE_PRIVATE);
+
+        boolean alarmSet = prefs.getBoolean("daily_alarm_set", false);
+        if (alarmSet) return; // כבר נקבע בעבר
+
+        AlarmManager alarmManager =
+                (AlarmManager) getSystemService(ALARM_SERVICE);
+
+        Intent intent = new Intent(this, DailyResetReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Calendar cal = Calendar.getInstance();
+//        cal.set(Calendar.HOUR_OF_DAY, 0);
+//        cal.set(Calendar.MINUTE, 0);
+//        cal.set(Calendar.SECOND, 0);
+//TODO
+        cal.add(Calendar.MINUTE, 2); // במקום חצות
+
+        // אם כבר עבר חצות היום – למחר
+        if (cal.before(Calendar.getInstance())) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        alarmManager.setRepeating(
+                AlarmManager.RTC_WAKEUP,
+                cal.getTimeInMillis(),
+                AlarmManager.INTERVAL_DAY,
+                pendingIntent
+        );
+
+        prefs.edit().putBoolean("daily_alarm_set", true).apply();
+    }
+
 
     private void loadUserGoals() {
         if (uid == null) return;
