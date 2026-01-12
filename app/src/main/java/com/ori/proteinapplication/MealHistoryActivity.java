@@ -29,6 +29,8 @@ public class MealHistoryActivity extends AppCompatActivity {
     private RecyclerView recyclerMeals;
     private MealAdapter adapter;
     private List<Meal> mealList;
+    private TextView tvDailySummary;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +43,7 @@ public class MealHistoryActivity extends AppCompatActivity {
             finish();
             return;
         }
+        tvDailySummary = findViewById(R.id.tvDailySummary);
 
         recyclerMeals = findViewById(R.id.recyclerMeals);
         recyclerMeals.setLayoutManager(new LinearLayoutManager(this));
@@ -63,21 +66,33 @@ public class MealHistoryActivity extends AppCompatActivity {
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     mealList.clear();
+
                     for (DocumentSnapshot doc : queryDocumentSnapshots) {
                         Map<String, Object> data = doc.getData();
                         if (data == null) continue;
 
                         String base64Image = (String) data.get("image");
-
+                        String date = (String) data.get("date");
                         Number proteinNum = (Number) data.get("protein");
                         Number caloriesNum = (Number) data.get("calories");
+                        Boolean favorite = (Boolean) data.get("favorite"); // יכול להיות null
 
                         int protein = proteinNum != null ? proteinNum.intValue() : 0;
                         int calories = caloriesNum != null ? caloriesNum.intValue() : 0;
 
                         Map<String, Double> components = (Map<String, Double>) data.get("components");
 
-                        mealList.add(new Meal(base64Image, protein, calories, components));
+                        String docId = doc.getId(); // מזהה המסמך ב-Firestore
+
+                        mealList.add(new Meal(
+                                base64Image,
+                                protein,
+                                calories,
+                                components,
+                                date != null ? date : "",
+                                favorite != null ? favorite : false,
+                                docId
+                        ));
                     }
 
                     if (mealList.isEmpty()) {
@@ -91,6 +106,7 @@ public class MealHistoryActivity extends AppCompatActivity {
                     e.printStackTrace();
                 });
     }
+
 
     // Adapter
     static class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder> {
@@ -162,35 +178,25 @@ public class MealHistoryActivity extends AppCompatActivity {
             }
         }
     }
+    private void showDailySummary(List<Meal> meals) {
+        int totalProtein = 0;
+        int totalCalories = 0;
 
-    // Meal model
-    static class Meal {
-        private String base64Image;
-        private int protein;
-        private int calories;
-        private Map<String, Double> components; // רכיב -> משקל בגרם
-
-        public Meal(String base64Image, int protein, int calories, Map<String, Double> components) {
-            this.base64Image = base64Image;
-            this.protein = protein;
-            this.calories = calories;
-            this.components = components;
+        for (Meal meal : meals) {
+            totalProtein += meal.getProtein();
+            totalCalories += meal.getCalories();
         }
 
-        public String getBase64Image() {
-            return base64Image;
-        }
-
-        public int getProtein() {
-            return protein;
-        }
-
-        public int getCalories() {
-            return calories;
-        }
-
-        public Map<String, Double> getComponents() {
-            return components;
-        }
+        tvDailySummary.setText("חלבון כולל: " + totalProtein + " | קלוריות כוללות: " + totalCalories);
     }
+
+    private List<Meal> filterByDate(String date) {
+        List<Meal> filtered = new ArrayList<>();
+        for (Meal meal : mealList) {
+            if (meal.getDate().equals(date)) filtered.add(meal);
+        }
+        return filtered;
+    }
+
 }
+

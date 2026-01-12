@@ -18,6 +18,8 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
+import java.time.LocalDate;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -470,6 +472,8 @@ public class MainDashboardActivity extends AppCompatActivity {
         Map<String, Object> meal = new HashMap<>();
         if (base64 != null) meal.put("image", base64);
         else if (imageUri != null) meal.put("imageUri", imageUri.toString());
+        String today = LocalDate.now().toString(); // yyyy-MM-dd
+        meal.put("date", today);
         meal.put("protein", protein);
         meal.put("calories", calories);
         meal.put("timestamp", System.currentTimeMillis());
