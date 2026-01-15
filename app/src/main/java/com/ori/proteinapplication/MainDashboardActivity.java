@@ -72,12 +72,16 @@ public class MainDashboardActivity extends AppCompatActivity {
     // image + bitmap
     private Uri imageUri;
     private Bitmap imageBitmap;
+    private List<Meal> allMeals = new ArrayList<>(); // כל הארוחות
+    private List<Meal> filteredMeals = new ArrayList<>(); // רק לפי יום
+
 
     // מאגר ערכי תזונה נפוצים (per 100g) — אפשר להרחיב
     private final Map<String, float[]> nutrientPer100gMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_dashboard);
 
@@ -159,6 +163,7 @@ public class MainDashboardActivity extends AppCompatActivity {
         );
 
         prefs.edit().putBoolean("daily_alarm_set", true).apply();
+
     }
 
 

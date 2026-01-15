@@ -14,6 +14,12 @@
         android:textSize="22sp"
         android:textStyle="bold"
         android:paddingBottom="8dp"/>
+    <Button
+        android:id="@+id/btnPickDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="בחר יום" />
+
     <TextView
         android:id="@+id/tvDailySummary"
         android:layout_width="wrap_content"
