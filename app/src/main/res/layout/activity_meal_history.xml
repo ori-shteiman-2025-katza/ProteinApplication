@@ -20,6 +20,12 @@
         android:layout_height="wrap_content"
         android:text="בחר יום" />
 
+    <Button
+        android:id="@+id/btnToggleFavorites"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⭐ מועדפים בלבד" />
+
     <TextView
         android:id="@+id/tvDailySummary"
         android:layout_width="wrap_content"
