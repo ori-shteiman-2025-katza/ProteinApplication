@@ -136,7 +136,8 @@ public class MealHistoryActivity extends AppCompatActivity {
             }
         }
 
-        adapter.updateList(filteredMeals);
+
+        adapter.notifyDataSetChanged();
         updateDailySummary(filteredMeals);
     }
 
@@ -181,11 +182,6 @@ public class MealHistoryActivity extends AppCompatActivity {
             this.meals = meals;
         }
 
-        public void updateList(List<Meal> newList) {
-            meals.clear();
-            meals.addAll(newList);
-            notifyDataSetChanged();
-        }
 
         @NonNull
         @Override
