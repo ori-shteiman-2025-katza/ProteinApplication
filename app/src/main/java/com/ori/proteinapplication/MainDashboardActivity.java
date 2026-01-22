@@ -16,6 +16,7 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.*;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import org.json.JSONArray;
@@ -41,6 +43,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -102,18 +105,6 @@ public class MainDashboardActivity extends AppCompatActivity {
         firestoreDb = FirebaseFirestore.getInstance();
         realtimeDbRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
 
-        // initial nutrient DB (per 100g). Format: {name -> [proteinPer100g, caloriesPer100g]}
-        nutrientPer100gMap.put("חזה עוף", new float[]{31f, 165f});
-        nutrientPer100gMap.put("עוף", new float[]{27f, 165f});
-        nutrientPer100gMap.put("בשר בקר", new float[]{26f, 250f});
-        nutrientPer100gMap.put("ביצת עוף", new float[]{13f, 155f}); // per 100g (approx)
-        nutrientPer100gMap.put("אורז", new float[]{2.7f, 130f});
-        nutrientPer100gMap.put("אורז לבן", new float[]{2.6f, 130f});
-        nutrientPer100gMap.put("ברוקולי", new float[]{2.8f, 34f});
-        nutrientPer100gMap.put("גבינה צהובה", new float[]{25f, 350f});
-        nutrientPer100gMap.put("חומוס", new float[]{19f, 364f});
-        nutrientPer100gMap.put("בטטה", new float[]{1.6f, 86f});
-        // הוסף עוד לפי הצורך...
 
         loadUserGoals();
 
@@ -534,5 +525,61 @@ public class MainDashboardActivity extends AppCompatActivity {
 
         return list;
     }
+    // 1. פונקציה שמציגה את החלונית להוספה ידנית
 
+    // 2. פונקציה לחישוב הרצף
+    private void updateStreak(String userId) {
+        DocumentReference userRef = FirebaseFirestore.getInstance().collection("users").document(userId);
+
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                long lastLogDate = 0;
+                if (documentSnapshot.contains("lastLogDate")) {
+                    lastLogDate = documentSnapshot.getLong("lastLogDate");
+                }
+
+                long currentStreak = 0;
+                if (documentSnapshot.contains("currentStreak")) {
+                    currentStreak = documentSnapshot.getLong("currentStreak");
+                }
+
+                // חישוב תאריכים (איפוס לשעה 00:00 כדי להשוות ימים בלבד)
+                Calendar today = Calendar.getInstance();
+                resetTime(today);
+
+                Calendar lastLogin = Calendar.getInstance();
+                lastLogin.setTimeInMillis(lastLogDate);
+                resetTime(lastLogin);
+
+                long diffInMillis = today.getTimeInMillis() - lastLogin.getTimeInMillis();
+                long daysDiff = TimeUnit.MILLISECONDS.toDays(diffInMillis);
+
+                if (daysDiff == 0) {
+                    // המשתמש כבר הזין היום - לא עושים כלום
+                    return;
+                } else if (daysDiff == 1) {
+                    // הזין אתמול - מגדילים רצף
+                    currentStreak++;
+                } else {
+                    // עברו יותר מימים, או שזו פעם ראשונה - מאפסים ל-1
+                    currentStreak = 1;
+                }
+
+                // עדכון הנתונים בשרת
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("currentStreak", currentStreak);
+                updates.put("lastLogDate", System.currentTimeMillis());
+
+                userRef.update(updates);
+            }
+        });
+    }
+
+    // פונקציית עזר קטנה לאיפוס שעות (לשים למטה בקובץ)
+    private void resetTime(Calendar calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+    }
 }

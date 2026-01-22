@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -16,7 +17,9 @@ import com.bumptech.glide.Glide;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder> {
 
@@ -30,7 +33,7 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
     @Override
     public MealViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.meal_item_layout, parent, false);
+                .inflate(R.layout.activity_meal_item, parent, false);
         return new MealViewHolder(view);
     }
 
@@ -79,6 +82,8 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
                         .update("favorite", newFav);
             }
         });
+        // בתוך onBindViewHolder
+
     }
 
     // ✅ מתודה לעדכון הרשימה

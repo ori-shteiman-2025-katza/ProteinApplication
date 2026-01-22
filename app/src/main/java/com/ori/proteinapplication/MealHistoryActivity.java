@@ -123,22 +123,43 @@ public class MealHistoryActivity extends AppCompatActivity {
     }
 
     // ---------- סינון לפי יום ו-favorite ----------
+    // בתוך MealHistoryActivity.java
+
     private void filterByDate(String date) {
         selectedDate = date;
         filteredMeals.clear();
 
-        for (Meal meal : allMeals) {
-            boolean sameDate = date.equals(meal.getDate());
-            boolean favoriteOk = !showFavoritesOnly || meal.isFavorite();
+        // שינוי לוגיקה: הפרדה בין מצב "מועדפים" למצב "תאריך"
+        if (showFavoritesOnly) {
+            // מצב 1: מציג את כל המועדפים מכל הזמנים
+            btnPickDate.setEnabled(false); // חוסם את בחירת התאריך כדי לא לבלבל
+            btnPickDate.setText("כל המועדפים");
 
-            if (sameDate && favoriteOk) {
-                filteredMeals.add(meal);
+            for (Meal meal : allMeals) {
+                if (meal.isFavorite()) {
+                    filteredMeals.add(meal);
+                }
+            }
+        } else {
+            // מצב 2: מציג ארוחות לפי התאריך שנבחר
+            btnPickDate.setEnabled(true);
+            btnPickDate.setText(selectedDate); // מציג את התאריך
+
+            for (Meal meal : allMeals) {
+                if (meal.getDate().equals(selectedDate)) {
+                    filteredMeals.add(meal);
+                }
             }
         }
 
-
         adapter.notifyDataSetChanged();
-        updateDailySummary(filteredMeals);
+
+        // במועדפים הסיכום היומי לא רלוונטי, אז נסתיר או נשנה אותו
+        if (showFavoritesOnly) {
+            tvDailySummary.setText("מציג " + filteredMeals.size() + " ארוחות מועדפות");
+        } else {
+            updateDailySummary(filteredMeals);
+        }
     }
 
     // ---------- סיכום יומי ----------

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="פרטי הארוחה"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etMealName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="שם המאכל (למשל: יוגורט)"
+        android:inputType="text" />
+
+    <EditText
+        android:id="@+id/etProtein"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="כמות חלבון (גרם)"
+        android:inputType="number"
+        android:layout_marginTop="10dp"/>
+
+    <EditText
+        android:id="@+id/etCalories"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="כמות קלוריות"
+        android:inputType="number"
+        android:layout_marginTop="10dp"/>
+
+</LinearLayout>
