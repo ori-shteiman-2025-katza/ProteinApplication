@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.*;
@@ -113,20 +114,25 @@ public class MainDashboardActivity extends AppCompatActivity {
         btnEditInfo.setOnClickListener(v -> startActivity(new Intent(this, EditInfoActivity.class)));
 
         scheduleDailyReset();
+
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_history) {
+                startActivity(new Intent(MainDashboardActivity.this, MealHistoryActivity.class));
+                return true;
+            } else if (id == R.id.nav_profile) {
+                startActivity(new Intent(MainDashboardActivity.this, EditInfoActivity.class));
+                return true;
+            }
+            return id == R.id.nav_main;
+        });
     }
 
     private void scheduleDailyReset() {
-
-        SharedPreferences prefs =
-                getSharedPreferences("app_prefs", MODE_PRIVATE);
-
-        boolean alarmSet = prefs.getBoolean("daily_alarm_set", false);
-        if (alarmSet) return; // כבר נקבע בעבר
-
-        AlarmManager alarmManager =
-                (AlarmManager) getSystemService(ALARM_SERVICE);
-
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         Intent intent = new Intent(this, DailyResetReceiver.class);
+
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
                 0,
@@ -134,48 +140,65 @@ public class MainDashboardActivity extends AppCompatActivity {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // הגדרת זמן לחצות הלילה הקרוב
         Calendar cal = Calendar.getInstance();
-//        cal.set(Calendar.HOUR_OF_DAY, 0);
-//        cal.set(Calendar.MINUTE, 0);
-//        cal.set(Calendar.SECOND, 0);
-//TODO
-        cal.add(Calendar.MINUTE, 2); // במקום חצות
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
 
-        // אם כבר עבר חצות היום – למחר
+        // אם חצות של היום כבר עבר (כלומר עכשיו כבר בוקר/צהריים), נקבע למחר ב-00:00
         if (cal.before(Calendar.getInstance())) {
             cal.add(Calendar.DAY_OF_YEAR, 1);
         }
 
-        alarmManager.setRepeating(
-                AlarmManager.RTC_WAKEUP,
-                cal.getTimeInMillis(),
-                AlarmManager.INTERVAL_DAY,
-                pendingIntent
-        );
+        if (alarmManager != null) {
+            // ביטול של שעונים קודמים אם היו (ליתר ביטחון)
+            alarmManager.cancel(pendingIntent);
 
-        prefs.edit().putBoolean("daily_alarm_set", true).apply();
+            // קביעת השעון המעורר היומי
+            alarmManager.setRepeating(
+                    AlarmManager.RTC_WAKEUP,
+                    cal.getTimeInMillis(),
+                    AlarmManager.INTERVAL_DAY,
+                    pendingIntent
+            );
+        }
 
+        // הערה חשובה: הסרתי את ה-if שבודק "alarm_set" כדי שהשינוי יתפוס מיד
+        Log.d(TAG, "השעון הוגדר מחדש לחצות הלילה.");
     }
-
-
     private void loadUserGoals() {
         if (uid == null) return;
-        realtimeDbRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+
+        realtimeDbRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (snapshot.exists()) {
-                    proteinGoal = snapshot.child("dailyProtein").getValue(Integer.class) != null ?
-                            snapshot.child("dailyProtein").getValue(Integer.class) : 0;
-                    caloriesGoal = snapshot.child("dailyCalories").getValue(Integer.class) != null ?
-                            snapshot.child("dailyCalories").getValue(Integer.class) : 0;
-                    currentProtein = snapshot.child("currentProtein").getValue(Integer.class) != null ?
-                            snapshot.child("currentProtein").getValue(Integer.class) : 0;
-                    currentCalories = snapshot.child("currentCalories").getValue(Integer.class) != null ?
-                            snapshot.child("currentCalories").getValue(Integer.class) : 0;
+                    // המרה בטוחה של כל הערכים - זה מונע קריסות אם המספר נשמר כעשרוני
+                    proteinGoal = getSafeInt(snapshot.child("dailyProtein"));
+                    caloriesGoal = getSafeInt(snapshot.child("dailyCalories"));
+                    currentProtein = getSafeInt(snapshot.child("currentProtein"));
+                    currentCalories = getSafeInt(snapshot.child("currentCalories"));
                 }
+                // עדכון התצוגה של העיגולים והטקסט
                 updateDashboard();
             }
-            @Override public void onCancelled(@NonNull DatabaseError error) { Log.w(TAG,"loadUserGoals cancelled", error.toException()); }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG, "loadUserGoals cancelled", error.toException());
+            }
         });
+    }
+
+    // פונקציית עזר קטנה כדי להפוך את הקוד למעלה לנקי ובטוח יותר
+    private int getSafeInt(DataSnapshot snapshot) {
+        Object value = snapshot.getValue();
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0; // ערך ברירת מחדל אם אין נתונים
     }
 
     private void updateDashboard() {
@@ -582,4 +605,5 @@ public class MainDashboardActivity extends AppCompatActivity {
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
     }
+
 }

@@ -3,6 +3,7 @@ package com.ori.proteinapplication;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,6 +15,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
 
 public class EditInfoActivity extends AppCompatActivity {
 
@@ -29,6 +38,7 @@ public class EditInfoActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_info);
 
+        // אתחול רכיבים
         etWeight = findViewById(R.id.etWeight);
         etHeight = findViewById(R.id.etHeight);
         etAge = findViewById(R.id.etAge);
@@ -38,27 +48,124 @@ public class EditInfoActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
 
         mAuth = FirebaseAuth.getInstance();
-        usersRef = FirebaseDatabase.getInstance().getReference("Users");
-
         if (mAuth.getCurrentUser() == null) {
-            Toast.makeText(this, "משתמש לא מחובר. יש להירשם קודם", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
         uid = mAuth.getCurrentUser().getUid();
+        usersRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
 
+        // בתוך onCreate של MainDashboardActivity
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setSelectedItemId(R.id.nav_main);
+
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+
+            // שים לב לשימוש ב-this הפשוט או בשם המדויק של המחלקה
+            if (id == R.id.nav_history) {
+                Intent intent = new Intent(EditInfoActivity.this, MealHistoryActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (id == R.id.nav_profile) {
+                // התיקון הקריטי: מעבר ל-EditInfoActivity ולא ל-UserInfo
+                Intent intent = new Intent(EditInfoActivity.this, EditInfoActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            return id == R.id.nav_main;
+        });
+        // 1. הגדרת הספינרים קודם כל
+        setupSpinners();
+
+        // 2. טעינת הנתונים הקיימים מהשרת כדי שהדף לא יהיה ריק
+        loadUserData();
+
+        // 3. הגדרת הניווט
+        setupBottomNavigation();
+
+        btnSave.setOnClickListener(v -> saveUserInfo());
+    }
+
+    private void loadUserData() {
+        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    try {
+                        // שימוש ב-Double במקום פרימיטיבי כדי למנוע קריסה אם הערך null
+                        Double w = snapshot.child("weight").getValue(Double.class);
+                        Double h = snapshot.child("height").getValue(Double.class);
+                        Integer a = snapshot.child("age").getValue(Integer.class);
+                        Integer wpw = snapshot.child("workoutsPerWeek").getValue(Integer.class);
+
+                        if (w != null) etWeight.setText(String.valueOf(w));
+                        if (h != null) etHeight.setText(String.valueOf(h));
+                        if (a != null) etAge.setText(String.valueOf(a));
+                        if (wpw != null) etWorkoutsPerWeek.setText(String.valueOf(wpw));
+
+                        // טיפול בטוח בספינרים
+                        String gender = snapshot.child("gender").getValue(String.class);
+                        if (gender != null && spGender.getAdapter() != null) {
+                            for (int i = 0; i < spGender.getAdapter().getCount(); i++) {
+                                if (spGender.getAdapter().getItem(i).toString().equals(gender)) {
+                                    spGender.setSelection(i);
+                                    break;
+                                }
+                            }
+                        }
+
+                        String intensity = snapshot.child("intensity").getValue(String.class);
+                        if (intensity != null && spIntensity.getAdapter() != null) {
+                            for (int i = 0; i < spIntensity.getAdapter().getCount(); i++) {
+                                if (spIntensity.getAdapter().getItem(i).toString().equals(intensity)) {
+                                    spIntensity.setSelection(i);
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e("EditInfo", "Error parsing data", e);
+                    }
+                }
+            }
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
+    private void setupSpinners() {
+        // מגדר
         ArrayAdapter<String> genderAdapter = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_item,
                 new String[]{"זכר", "נקבה"});
         genderAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spGender.setAdapter(genderAdapter);
 
+        // אינטנסיביות
         ArrayAdapter<CharSequence> intensityAdapter = ArrayAdapter.createFromResource(
                 this, R.array.intensity_levels, android.R.layout.simple_spinner_item);
         intensityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spIntensity.setAdapter(intensityAdapter);
+    }
 
-        btnSave.setOnClickListener(v -> saveUserInfo());
+    private void setupBottomNavigation() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_profile);
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_main) {
+                startActivity(new Intent(this, MainDashboardActivity.class));
+                overridePendingTransition(0, 0);
+                finish();
+                return true;
+            } else if (id == R.id.nav_history) {
+                startActivity(new Intent(this, MealHistoryActivity.class));
+                overridePendingTransition(0, 0);
+                finish();
+                return true;
+            }
+            return id == R.id.nav_profile;
+        });
     }
 
     private void saveUserInfo() {
@@ -78,17 +185,20 @@ public class EditInfoActivity extends AppCompatActivity {
             String gender = spGender.getSelectedItem().toString();
             String intensity = spIntensity.getSelectedItem().toString();
 
+            // שליפת פקטורים מה-Strings.xml
             String[] intensityLevels = getResources().getStringArray(R.array.intensity_levels);
             String[] activityFactorsStr = getResources().getStringArray(R.array.activity_factors);
             String[] proteinFactorsStr = getResources().getStringArray(R.array.protein_factors);
 
             int index = 0;
-            for (int i = 0; i < intensityLevels.length; i++)
+            for (int i = 0; i < intensityLevels.length; i++) {
                 if (intensityLevels[i].equals(intensity)) index = i;
+            }
 
             double activityFactor = Double.parseDouble(activityFactorsStr[index]);
             double proteinFactor = Double.parseDouble(proteinFactorsStr[index]);
 
+            // חישוב BMR
             double bmr;
             if (gender.equals("זכר")) {
                 bmr = 88.36 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
@@ -99,18 +209,18 @@ public class EditInfoActivity extends AppCompatActivity {
             double dailyCalories = Math.round(bmr * activityFactor);
             double dailyProtein = Math.round(weight * proteinFactor);
 
-            // יצירת אובייקט UserInfo
+            // יצירת אובייקט UserInfo (current=0)
             UserInfo user = new UserInfo(weight, height, age, gender, workoutsPerWeek, intensity,
-                    dailyCalories, dailyProtein, 0, 0); // currentProtein/currentCalories = 0
+                    dailyCalories, dailyProtein, 0, 0);
 
             usersRef.child(uid).setValue(user)
                     .addOnSuccessListener(unused -> {
                         Toast.makeText(this, "הנתונים נשמרו בהצלחה!", Toast.LENGTH_SHORT).show();
-
-                        // מעבר אוטומטי ל-MainDashboardActivity
+                        // חזרה לדף הראשי אחרי שמירה
                         Intent intent = new Intent(EditInfoActivity.this, MainDashboardActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
-                        finish(); // סוגר את editInfo כדי שלא יחזור אליו בלחיצה על חזור
+                        finish();
                     })
                     .addOnFailureListener(e ->
                             Toast.makeText(this, "שגיאה: " + e.getMessage(), Toast.LENGTH_SHORT).show()
@@ -121,3 +231,4 @@ public class EditInfoActivity extends AppCompatActivity {
         }
     }
 }
+
