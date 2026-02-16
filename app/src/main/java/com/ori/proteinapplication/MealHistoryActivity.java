@@ -43,6 +43,8 @@ public class MealHistoryActivity extends AppCompatActivity {
     private boolean showFavoritesOnly = false;
     private String selectedDate; // yyyy-MM-dd
 
+    BottomNavigationView bottomNavigationView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +59,7 @@ public class MealHistoryActivity extends AppCompatActivity {
         tvDailySummary = findViewById(R.id.tvDailySummary);
         btnPickDate = findViewById(R.id.btnPickDate);
         btnToggleFavorites = findViewById(R.id.btnToggleFavorites);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         recyclerMeals = findViewById(R.id.recyclerMeals);
         recyclerMeals.setLayoutManager(new LinearLayoutManager(this));
@@ -74,20 +77,11 @@ public class MealHistoryActivity extends AppCompatActivity {
 
         loadMealsFromFirestore();
 
-        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
-        bottomNavigationView.setSelectedItemId(R.id.nav_history); // מסמן את ההיסטוריה כפעילה
-
-        bottomNavigationView.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_main) {
-                startActivity(new Intent(MealHistoryActivity.this, MainDashboardActivity.class));
-                return true;
-            } else if (id == R.id.nav_profile) {
-                startActivity(new Intent(MealHistoryActivity.this, EditInfoActivity.class));
-                return true;
-            }
-            return id == R.id.nav_history; // נשאר כאן אם לחצו על היסטוריה
-        });
+        BottomNavigationHelper.setupBottomNavigation(
+                this,
+                bottomNavigationView,
+                R.id.nav_history
+        );
     }
 
     // ---------- Firestore ----------

@@ -4,6 +4,7 @@ package com.ori.proteinapplication;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -12,6 +13,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.navigation.NavigationBarView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -32,6 +34,7 @@ public class EditInfoActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private DatabaseReference usersRef;
     private String uid;
+    BottomNavigationView bottomNavigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +49,7 @@ public class EditInfoActivity extends AppCompatActivity {
         spGender = findViewById(R.id.spGender);
         spIntensity = findViewById(R.id.spIntensity);
         btnSave = findViewById(R.id.btnSave);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
@@ -55,26 +59,6 @@ public class EditInfoActivity extends AppCompatActivity {
         uid = mAuth.getCurrentUser().getUid();
         usersRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
 
-        // בתוך onCreate של MainDashboardActivity
-        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
-        bottomNavigationView.setSelectedItemId(R.id.nav_main);
-
-        bottomNavigationView.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-
-            // שים לב לשימוש ב-this הפשוט או בשם המדויק של המחלקה
-            if (id == R.id.nav_history) {
-                Intent intent = new Intent(EditInfoActivity.this, MealHistoryActivity.class);
-                startActivity(intent);
-                return true;
-            } else if (id == R.id.nav_profile) {
-                // התיקון הקריטי: מעבר ל-EditInfoActivity ולא ל-UserInfo
-                Intent intent = new Intent(EditInfoActivity.this, EditInfoActivity.class);
-                startActivity(intent);
-                return true;
-            }
-            return id == R.id.nav_main;
-        });
         // 1. הגדרת הספינרים קודם כל
         setupSpinners();
 
@@ -82,7 +66,11 @@ public class EditInfoActivity extends AppCompatActivity {
         loadUserData();
 
         // 3. הגדרת הניווט
-        setupBottomNavigation();
+        BottomNavigationHelper.setupBottomNavigation(
+                this,
+                bottomNavigationView,
+                R.id.nav_profile
+        );
 
         btnSave.setOnClickListener(v -> saveUserInfo());
     }
@@ -146,26 +134,6 @@ public class EditInfoActivity extends AppCompatActivity {
                 this, R.array.intensity_levels, android.R.layout.simple_spinner_item);
         intensityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spIntensity.setAdapter(intensityAdapter);
-    }
-
-    private void setupBottomNavigation() {
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_profile);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_main) {
-                startActivity(new Intent(this, MainDashboardActivity.class));
-                overridePendingTransition(0, 0);
-                finish();
-                return true;
-            } else if (id == R.id.nav_history) {
-                startActivity(new Intent(this, MealHistoryActivity.class));
-                overridePendingTransition(0, 0);
-                finish();
-                return true;
-            }
-            return id == R.id.nav_profile;
-        });
     }
 
     private void saveUserInfo() {

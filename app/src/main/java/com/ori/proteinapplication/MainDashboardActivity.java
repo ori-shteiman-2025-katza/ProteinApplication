@@ -62,7 +62,7 @@ public class MainDashboardActivity extends AppCompatActivity {
     private TextView tvProteinProgress, tvCaloriesProgress;
     private CircularProgressIndicator progressProteinCircular, progressCaloriesCircular;
     private ProgressBar progressAi;
-    private Button btnUploadMeal, btnViewMeals, btnEditInfo;
+    private Button btnUploadMeal;
 
     // Firebase
     private FirebaseFirestore firestoreDb;
@@ -83,6 +83,8 @@ public class MainDashboardActivity extends AppCompatActivity {
     // מאגר ערכי תזונה נפוצים (per 100g) — אפשר להרחיב
     private final Map<String, float[]> nutrientPer100gMap = new HashMap<>();
 
+    BottomNavigationView bottomNavigationView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -97,8 +99,7 @@ public class MainDashboardActivity extends AppCompatActivity {
         progressCaloriesCircular = findViewById(R.id.progressCaloriesCircular);
         progressAi = findViewById(R.id.progressAi);
         btnUploadMeal = findViewById(R.id.btnUploadMeal);
-        btnViewMeals = findViewById(R.id.btnViewMeals);
-        btnEditInfo = findViewById(R.id.btnEditInfo);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         // firebase
         uid = FirebaseAuth.getInstance().getCurrentUser() != null ?
@@ -110,23 +111,14 @@ public class MainDashboardActivity extends AppCompatActivity {
         loadUserGoals();
 
         btnUploadMeal.setOnClickListener(v -> openFileChooser());
-        btnViewMeals.setOnClickListener(v -> startActivity(new Intent(this, MealHistoryActivity.class)));
-        btnEditInfo.setOnClickListener(v -> startActivity(new Intent(this, EditInfoActivity.class)));
 
         scheduleDailyReset();
 
-        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
-        bottomNavigationView.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_history) {
-                startActivity(new Intent(MainDashboardActivity.this, MealHistoryActivity.class));
-                return true;
-            } else if (id == R.id.nav_profile) {
-                startActivity(new Intent(MainDashboardActivity.this, EditInfoActivity.class));
-                return true;
-            }
-            return id == R.id.nav_main;
-        });
+        BottomNavigationHelper.setupBottomNavigation(
+                this,
+                bottomNavigationView,
+                R.id.nav_main
+        );
     }
 
     private void scheduleDailyReset() {
