@@ -16,8 +16,7 @@ public class FBRef {
     // מאתחל את המופע של FirebaseDatabase, מאפשר גישה לנתוני Firebase Realtime Database
     public static FirebaseDatabase FBDB = FirebaseDatabase.getInstance();
 
-    //
-    public static DatabaseReference refUsers = FirebaseDatabase.getInstance().getReference("Users");
+    public static DatabaseReference refUsers = FBDB.getReference("Users");
 
     // מפנה ל-reference של "addItem" ב- Firebase Database. כאן יאוחסנו פריטים שנוספים למערכת (אפשר לשנות את השם בהתאם לצורך).
 

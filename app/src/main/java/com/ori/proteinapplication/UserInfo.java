@@ -5,7 +5,7 @@ public class UserInfo {
     private double weight, height, dailyCalories, dailyProtein;
     private int age, workoutsPerWeek;
     private String gender, intensity;
-    private double currentCalories, currentProtein; // הוספנו את השדות האלה
+    private double currentCalories, currentProtein;
 
     public UserInfo() { }
 

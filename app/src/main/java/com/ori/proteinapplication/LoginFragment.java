@@ -3,8 +3,6 @@ package com.ori.proteinapplication;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,14 +15,15 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.google.firebase.auth.FirebaseAuth;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
 
 public class LoginFragment extends Fragment {
 
     private EditText etEmailLogin, etPasswordLogin;
     private Button btnLogin;
     private TextView tvRegisterLink;
-    private FirebaseAuth mAuth;
 
     public LoginFragment() { }
 
@@ -38,10 +37,19 @@ public class LoginFragment extends Fragment {
         btnLogin = view.findViewById(R.id.btnLogin);
         tvRegisterLink = view.findViewById(R.id.tvRegisterLink);
 
-        mAuth = FirebaseAuth.getInstance();
+        btnLogin.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LoginFragment.this.loginUser();
+            }
+        });
 
-        btnLogin.setOnClickListener(v -> loginUser());
-        tvRegisterLink.setOnClickListener(v -> ((AuthActivity)getActivity()).showRegisterFragment());
+        tvRegisterLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ((AuthActivity) LoginFragment.this.getActivity()).showRegisterFragment();
+            }
+        });
 
         return view;
     }
@@ -55,17 +63,23 @@ public class LoginFragment extends Fragment {
             return;
         }
 
-        mAuth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener(task -> {
-                    if(task.isSuccessful()){
-                        Toast.makeText(getActivity(), "התחברות הצליחה!", Toast.LENGTH_SHORT).show();
-                        Intent intent = new Intent(getActivity(), MainDashboardActivity.class);
-                        startActivity(intent);
-                        getActivity().finish();
+        FBRef.mAuth.signInWithEmailAndPassword(email, password)
+                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            Toast.makeText(LoginFragment.this.getActivity(), "התחברות הצליחה!", Toast.LENGTH_SHORT).show();
 
-                    } else {
-                        Toast.makeText(getActivity(), "שגיאה: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        Log.d("RINAT",task.getException().getMessage());
+                            Intent intent = new Intent(LoginFragment.this.getActivity(), MainDashboardActivity.class);
+                            LoginFragment.this.startActivity(intent);
+                            LoginFragment.this.getActivity().finish();
+
+                        } else {
+                            String error = "שגיאה לא ידועה";
+                            if (task.getException() != null)
+                                error = task.getException().getMessage();
+                            Toast.makeText(LoginFragment.this.getActivity(), error, Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }

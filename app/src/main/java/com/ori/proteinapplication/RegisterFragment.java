@@ -12,9 +12,13 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
 public class RegisterFragment extends Fragment {
@@ -22,7 +26,6 @@ public class RegisterFragment extends Fragment {
     private EditText etEmail, etPassword;
     private Button btnRegister;
     private TextView tvLoginLink;
-    private FirebaseAuth mAuth;
 
     public RegisterFragment() {
         // Required empty public constructor
@@ -38,24 +41,30 @@ public class RegisterFragment extends Fragment {
         btnRegister = view.findViewById(R.id.btnRegister);
         tvLoginLink = view.findViewById(R.id.tvLoginLink);
 
-        mAuth = FirebaseAuth.getInstance();
-
         // לחיצה על כפתור הרשמה
-        btnRegister.setOnClickListener(v -> registerUser());
+        btnRegister.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                registerUser();
+            }
+        });
 
         // קישור ל-login fragment
-        tvLoginLink.setOnClickListener(v -> {
-            showLoginFragment();
+        tvLoginLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLoginFragment();
+            }
         });
 
         return view;
     }
 
     public void showLoginFragment() {
-        FragmentTransaction transaction = getParentFragmentManager().beginTransaction();
-        transaction.replace(R.id.fragmentContainer, new LoginFragment());
-        transaction.addToBackStack(null);
-        transaction.commit();
+        getParentFragmentManager().beginTransaction()
+                .replace(R.id.fragmentContainer, new LoginFragment())
+                .addToBackStack(null)
+                .commit();
     }
 
     private void registerUser() {
@@ -67,17 +76,21 @@ public class RegisterFragment extends Fragment {
             return;
         }
 
-        mAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(getActivity(), "הרשמה הצליחה!", Toast.LENGTH_SHORT).show();
-                        // מעבר לדף עריכת פרטים
-                        Intent intent = new Intent(getActivity(), EditInfoActivity.class);
-                        startActivity(intent);
-                        getActivity().finish();
-                    } else {
-                        Toast.makeText(getActivity(), "שגיאה: " + task.getException().getMessage(),
-                                Toast.LENGTH_SHORT).show();
+        FBRef.mAuth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            Toast.makeText(RegisterFragment.this.getActivity(), "הרשמה הצליחה!", Toast.LENGTH_SHORT).show();
+
+                            // מעבר לדף עריכת פרטים
+                            Intent intent = new Intent(RegisterFragment.this.getActivity(), EditInfoActivity.class);
+                            RegisterFragment.this.startActivity(intent);
+                            RegisterFragment.this.getActivity().finish();
+                        } else {
+                            Toast.makeText(RegisterFragment.this.getActivity(), "שגיאה: " + task.getException().getMessage(),
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }

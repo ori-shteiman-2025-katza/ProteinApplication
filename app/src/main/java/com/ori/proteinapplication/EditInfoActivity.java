@@ -3,27 +3,22 @@ package com.ori.proteinapplication;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.MenuItem;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import com.google.android.material.navigation.NavigationBarView;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 
 public class EditInfoActivity extends AppCompatActivity {
@@ -31,8 +26,7 @@ public class EditInfoActivity extends AppCompatActivity {
     private EditText etWeight, etHeight, etAge, etWorkoutsPerWeek;
     private Spinner spGender, spIntensity;
     private Button btnSave;
-    private FirebaseAuth mAuth;
-    private DatabaseReference usersRef;
+    private DatabaseReference userRef;
     private String uid;
     BottomNavigationView bottomNavigationView;
 
@@ -40,6 +34,11 @@ public class EditInfoActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_info);
+
+        if (FBRef.mAuth.getCurrentUser() == null) {
+            finish();
+            return;
+        }
 
         // אתחול רכיבים
         etWeight = findViewById(R.id.etWeight);
@@ -51,75 +50,33 @@ public class EditInfoActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
         bottomNavigationView = findViewById(R.id.bottom_navigation);
 
-        mAuth = FirebaseAuth.getInstance();
-        if (mAuth.getCurrentUser() == null) {
-            finish();
-            return;
-        }
-        uid = mAuth.getCurrentUser().getUid();
-        usersRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
 
-        // 1. הגדרת הספינרים קודם כל
+
+        uid = FBRef.mAuth.getCurrentUser().getUid();
+        userRef = FBRef.refUsers.child(uid);
+
+        // הגדרת הספינרים
         setupSpinners();
 
-        // 2. טעינת הנתונים הקיימים מהשרת כדי שהדף לא יהיה ריק
+        // טעינת הנתונים הקיימים
         loadUserData();
 
-        // 3. הגדרת הניווט
+        // הגדרת הניווט
         BottomNavigationHelper.setupBottomNavigation(
                 this,
                 bottomNavigationView,
                 R.id.nav_profile
         );
 
-        btnSave.setOnClickListener(v -> saveUserInfo());
-    }
-
-    private void loadUserData() {
-        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        // מאזינים
+        btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.exists()) {
-                    try {
-                        // שימוש ב-Double במקום פרימיטיבי כדי למנוע קריסה אם הערך null
-                        Double w = snapshot.child("weight").getValue(Double.class);
-                        Double h = snapshot.child("height").getValue(Double.class);
-                        Integer a = snapshot.child("age").getValue(Integer.class);
-                        Integer wpw = snapshot.child("workoutsPerWeek").getValue(Integer.class);
-
-                        if (w != null) etWeight.setText(String.valueOf(w));
-                        if (h != null) etHeight.setText(String.valueOf(h));
-                        if (a != null) etAge.setText(String.valueOf(a));
-                        if (wpw != null) etWorkoutsPerWeek.setText(String.valueOf(wpw));
-
-                        // טיפול בטוח בספינרים
-                        String gender = snapshot.child("gender").getValue(String.class);
-                        if (gender != null && spGender.getAdapter() != null) {
-                            for (int i = 0; i < spGender.getAdapter().getCount(); i++) {
-                                if (spGender.getAdapter().getItem(i).toString().equals(gender)) {
-                                    spGender.setSelection(i);
-                                    break;
-                                }
-                            }
-                        }
-
-                        String intensity = snapshot.child("intensity").getValue(String.class);
-                        if (intensity != null && spIntensity.getAdapter() != null) {
-                            for (int i = 0; i < spIntensity.getAdapter().getCount(); i++) {
-                                if (spIntensity.getAdapter().getItem(i).toString().equals(intensity)) {
-                                    spIntensity.setSelection(i);
-                                    break;
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e("EditInfo", "Error parsing data", e);
-                    }
-                }
+            public void onClick(View v) {
+                saveUserInfo();
             }
-            @Override public void onCancelled(@NonNull DatabaseError error) {}
         });
     }
+
 
     private void setupSpinners() {
         // מגדר
@@ -135,6 +92,47 @@ public class EditInfoActivity extends AppCompatActivity {
         intensityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spIntensity.setAdapter(intensityAdapter);
     }
+
+
+    private void setSpinnerSelection(Spinner spinner, String value) {
+        if (value == null)
+            return;
+
+        ArrayAdapter adapter = (ArrayAdapter) spinner.getAdapter();
+        int position = adapter.getPosition(value);
+        if (position >= 0)
+            spinner.setSelection(position);
+    }
+
+
+    private void loadUserData() {
+        userRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    // שימוש ב-Double במקום פרימיטיבי כדי למנוע קריסה אם הערך null
+                    Double w = snapshot.child("weight").getValue(Double.class);
+                    Double h = snapshot.child("height").getValue(Double.class);
+                    Integer a = snapshot.child("age").getValue(Integer.class);
+                    Integer wpw = snapshot.child("workoutsPerWeek").getValue(Integer.class);
+
+                    if (w != null) etWeight.setText(String.valueOf(w));
+                    if (h != null) etHeight.setText(String.valueOf(h));
+                    if (a != null) etAge.setText(String.valueOf(a));
+                    if (wpw != null) etWorkoutsPerWeek.setText(String.valueOf(wpw));
+
+                    setSpinnerSelection(spGender,
+                            snapshot.child("gender").getValue(String.class));
+
+                    setSpinnerSelection(spIntensity,
+                            snapshot.child("intensity").getValue(String.class));
+
+                }
+            }
+            @Override public void onCancelled(@NonNull DatabaseError error) {}
+        });
+    }
+
 
     private void saveUserInfo() {
         try {
@@ -160,7 +158,8 @@ public class EditInfoActivity extends AppCompatActivity {
 
             int index = 0;
             for (int i = 0; i < intensityLevels.length; i++) {
-                if (intensityLevels[i].equals(intensity)) index = i;
+                if (intensityLevels[i].equals(intensity))
+                    index = i;
             }
 
             double activityFactor = Double.parseDouble(activityFactorsStr[index]);
@@ -181,17 +180,24 @@ public class EditInfoActivity extends AppCompatActivity {
             UserInfo user = new UserInfo(weight, height, age, gender, workoutsPerWeek, intensity,
                     dailyCalories, dailyProtein, 0, 0);
 
-            usersRef.child(uid).setValue(user)
-                    .addOnSuccessListener(unused -> {
-                        Toast.makeText(this, "הנתונים נשמרו בהצלחה!", Toast.LENGTH_SHORT).show();
-                        // חזרה לדף הראשי אחרי שמירה
-                        Intent intent = new Intent(EditInfoActivity.this, MainDashboardActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(intent);
-                        finish();
+            userRef.setValue(user)
+                    .addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void unused) {
+                            Toast.makeText(EditInfoActivity.this, "הנתונים נשמרו בהצלחה!", Toast.LENGTH_SHORT).show();
+
+                            // חזרה לדף הראשי אחרי שמירה
+                            Intent intent = new Intent(EditInfoActivity.this, MainDashboardActivity.class);
+                            EditInfoActivity.this.startActivity(intent);
+                            EditInfoActivity.this.finish();
+                        }
                     })
-                    .addOnFailureListener(e ->
-                            Toast.makeText(this, "שגיאה: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                    .addOnFailureListener(new OnFailureListener() {
+                                              @Override
+                                              public void onFailure(@NonNull Exception e) {
+                                                  Toast.makeText(EditInfoActivity.this, "שגיאה: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                              }
+                                          }
                     );
 
         } catch (NumberFormatException e) {
