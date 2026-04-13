@@ -78,7 +78,9 @@ public class MainDashboardActivity extends AppCompatActivity {
     private Bitmap imageBitmap;
     private List<Meal> allMeals = new ArrayList<>(); // כל הארוחות
     private List<Meal> filteredMeals = new ArrayList<>(); // רק לפי יום
-
+    private Button btnCaptureMeal;
+    private static final int CAMERA_REQUEST = 2; // קוד מזהה למצלמה
+    private static final int CAMERA_PERMISSION_CODE = 100;
 
     // מאגר ערכי תזונה נפוצים (per 100g) — אפשר להרחיב
     private final Map<String, float[]> nutrientPer100gMap = new HashMap<>();
@@ -87,11 +89,10 @@ public class MainDashboardActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_dashboard);
 
-        // findViews
+        // 1. findViews - הוספתי כאן את הקישור לכפתור המצלמה
         imgMealPreview = findViewById(R.id.imgMeal);
         tvProteinProgress = findViewById(R.id.tvProteinProgress);
         tvCaloriesProgress = findViewById(R.id.tvCaloriesProgress);
@@ -99,26 +100,56 @@ public class MainDashboardActivity extends AppCompatActivity {
         progressCaloriesCircular = findViewById(R.id.progressCaloriesCircular);
         progressAi = findViewById(R.id.progressAi);
         btnUploadMeal = findViewById(R.id.btnUploadMeal);
+        btnCaptureMeal = findViewById(R.id.btnCaptureMeal); // <--- השורה שהייתה חסרה!
         bottomNavigationView = findViewById(R.id.bottom_navigation);
 
-        // firebase
+        // 2. firebase
         uid = FirebaseAuth.getInstance().getCurrentUser() != null ?
                 FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
-        firestoreDb = FirebaseFirestore.getInstance();
-        realtimeDbRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
 
+        if (uid != null) {
+            firestoreDb = FirebaseFirestore.getInstance();
+            realtimeDbRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
+            loadUserGoals();
+        }
 
-        loadUserGoals();
+        // 3. Listeners
 
+        // כפתור גלריה
         btnUploadMeal.setOnClickListener(v -> openFileChooser());
 
-        scheduleDailyReset();
+        // כפתור מצלמה (עם בדיקת הרשאות)
+        if (btnCaptureMeal != null) {
+            btnCaptureMeal.setOnClickListener(v -> {
+                if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    openCamera();
+                } else {
+                    requestPermissions(new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+                }
+            });
+        }
 
+        // 4. Helpers
+        scheduleDailyReset();
         BottomNavigationHelper.setupBottomNavigation(
                 this,
                 bottomNavigationView,
                 R.id.nav_main
         );
+    }
+
+    private void openCamera() {
+        Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+        startActivityForResult(intent, CAMERA_REQUEST);
+        /*
+        // בדיקה שיש אפליקציית מצלמה במכשיר לפני שמפעילים
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(intent, CAMERA_REQUEST);
+        } else {
+            Toast.makeText(this, "לא נמצאה אפליקציית מצלמה", Toast.LENGTH_SHORT).show();
+        }
+
+         */
     }
 
     private void scheduleDailyReset() {
@@ -230,105 +261,112 @@ public class MainDashboardActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
-            imageUri = data.getData();
-            if (imageUri == null) {
-                Toast.makeText(this, "לא נמצאה תמונה", Toast.LENGTH_SHORT).show();
-                return;
+
+        if (resultCode == RESULT_OK) {
+            if (requestCode == PICK_IMAGE_REQUEST && data != null) {
+                // טיפול בגלריה
+                imageUri = data.getData();
+                if (imageUri == null) {
+                    Toast.makeText(this, "לא נמצאה תמונה", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    imageBitmap = uriToBitmap(imageUri);
+                    imageBitmap = resizeBitmapIfNeeded(imageBitmap, 1024);
+                } catch (IOException e) {
+                    Log.e(TAG, "uriToBitmap failed", e);
+                    Toast.makeText(this, "שגיאה בקריאת תמונה", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+            else if (requestCode == CAMERA_REQUEST && data != null) {
+                // טיפול במצלמה
+                imageBitmap = (Bitmap) data.getExtras().get("data");
             }
 
-            try {
-                imageBitmap = uriToBitmap(imageUri);
-                imageBitmap = resizeBitmapIfNeeded(imageBitmap, 1024); // shrink to avoid timeout
-            } catch (IOException e) {
-                Log.e(TAG, "uriToBitmap failed", e);
-                Toast.makeText(this, "שגיאה בקריאת תמונה", Toast.LENGTH_SHORT).show();
-                return;
+            // אם יש לנו ביטמפ (מכל מקור שהוא), נמשיך לניתוח
+            if (imageBitmap != null) {
+                imgMealPreview.setImageBitmap(imageBitmap);
+                analyzeMealWithAI(imageBitmap);
             }
+        }
 
-            // תצוגה מקדימה
-            imgMealPreview.setImageBitmap(imageBitmap);
-
-            // שלח ל-AI
-            progressAi.setVisibility(View.VISIBLE);
-
-            // Prompt — בקש JSON ברור
-            //String prompt = "נתח את התמונה והחזר אך ורק JSON במבנה הבא: {\"רכיבים\":[{\"שם\":\"טקסט\",\"גרם\":מספר,\"חלבון\":מספר,\"קלוריות\":מספר}], \"חלבון כולל\":מספר, \"קלוריות כולל\":מספר}. אל תוסיף שום טקסט חוץ מה-JSON. לכל רכיב תן הערכת גרם, חלבון וקלוריות לפי מה שאתה רואה בתמונה.";
-            String prompt = "נתח את התמונה והחזר אך ורק JSON תקין, ללא טקסט נוסף או הסברים.\n" +
-                    "JSON חייב להיות במבנה הבא:\n" +
-                    "{\n" +
-                    "  \"components\": [\n" +
-                    "    {\n" +
-                    "      \"name\": \"string\",\n" +
-                    "      \"weight\": number,\n" +
-                    "      \"protein\": number,\n" +
-                    "      \"calories\": number\n" +
-                    "    }\n" +
-                    "  ],\n" +
-                    "  \"totalProtein\": number,\n" +
-                    "  \"totalCalories\": number\n" +
-                    "}\n" +
-                    "הערות:\n" +
-                    "- weight = משקל מוערך של כל רכיב בתמונה (בגרם)\n" +
-                    "- protein = חלבון כולל של הרכיב לפי המשקל\n" +
-                    "- calories = קלוריות כוללות של הרכיב לפי המשקל\n" +
-                    "- totalProtein = סכום החלבון מכל הרכיבים\n" +
-                    "- totalCalories = סכום הקלוריות מכל הרכיבים\n" +
-                    "אל תשתמש בערכים ל-100 גרם, אל תוסיף טקסט או הסברים נוספים.";
-
-
-
-            // קריאה ל-GeminiManager
-            GeminiManager.getInstance().sendMessageWithPhoto(prompt, imageBitmap, new GeminiCallback() {
-                @Override
-                public void onSuccess(String response) {
-                    Log.d(TAG, "AI response: " + response);
-                    runOnUiThread(() -> {
-                        progressAi.setVisibility(View.GONE);
-                        try {
-
-                            String cleanJson = response
-                                    .replace("```json", "")
-                                    .replace("```", "")
-                                    .trim();
-
-
-                            List<MealComponent> comps = parseMealJson(cleanJson);
-                            if (comps.isEmpty()) {
-                                Toast.makeText(MainDashboardActivity.this,
-                                        "AI לא זיהה רכיבים — צלם מחדש או כתוב ידנית.",
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
-
-
-
-
-
-                            showComponentsDialog(comps);
-                        } catch (Exception e) {
-                            Log.e(TAG, "parse error", e);
-                            Toast.makeText(MainDashboardActivity.this, "שגיאה בפרסינג ה-AI", Toast.LENGTH_LONG).show();
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(String error) {
-                    Log.e(TAG, "AI error: " + error);
-                    runOnUiThread(() -> {
-                        progressAi.setVisibility(View.GONE);
-                        Toast.makeText(MainDashboardActivity.this, "שגיאת AI: " + error, Toast.LENGTH_LONG).show();
-                    });
-                }
-            });
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                // המשתמש אישר! אפשר לפתוח מצלמה
+                openCamera();
+            } else {
+                // המשתמש סירב
+                Toast.makeText(this, "חובה לאשר מצלמה כדי לצלם ארוחה", Toast.LENGTH_SHORT).show();
+            }
         }
     }
+    private void analyzeMealWithAI(Bitmap bitmap) {
+        progressAi.setVisibility(View.VISIBLE);
 
-    /**
-     * דיאלוג עריכה: מציג כל רכיב, משקל (EditText), חלבון וקלוריות לכל רכיב,
-     * מחשב טוטאל בזמן אמת כאשר המשתמש משנה משקל.
-     */
+        String prompt = "נתח את התמונה והחזר אך ורק JSON תקין, ללא טקסט נוסף או הסברים.\n" +
+                "JSON חייב להיות במבנה הבא:\n" +
+                "{\n" +
+                "  \"components\": [\n" +
+                "    {\n" +
+                "      \"name\": \"string\",\n" +
+                "      \"weight\": number,\n" +
+                "      \"protein\": number,\n" +
+                "      \"calories\": number\n" +
+                "    }\n" +
+                "  ],\n" +
+                "  \"totalProtein\": number,\n" +
+                "  \"totalCalories\": number\n" +
+                "}\n" +
+                "הערות:\n" +
+                "- weight = משקל מוערך של כל רכיב בתמונה (בגרם)\n" +
+                "- protein = חלבון כולל של הרכיב לפי המשקל\n" +
+                "- calories = קלוריות כוללות של הרכיב לפי המשקל\n" +
+                "- totalProtein = סכום החלבון מכל הרכיבים\n" +
+                "- totalCalories = סכום הקלוריות מכל הרכיבים\n" +
+                "אל תשתמש בערכים ל-100 גרם, אל תוסיף טקסט או הסברים נוספים.";
+
+        GeminiManager.getInstance().sendMessageWithPhoto(prompt, bitmap, new GeminiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                Log.d(TAG, "AI response: " + response);
+                runOnUiThread(() -> {
+                    progressAi.setVisibility(View.GONE);
+                    try {
+                        String cleanJson = response
+                                .replace("```json", "")
+                                .replace("```", "")
+                                .trim();
+
+                        List<MealComponent> comps = parseMealJson(cleanJson);
+                        if (comps.isEmpty()) {
+                            Toast.makeText(MainDashboardActivity.this,
+                                    "AI לא זיהה רכיבים — צלם מחדש או כתוב ידנית.",
+                                    Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        showComponentsDialog(comps);
+                    } catch (Exception e) {
+                        Log.e(TAG, "parse error", e);
+                        Toast.makeText(MainDashboardActivity.this, "שגיאה בניתוח הנתונים", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "AI error: " + error);
+                runOnUiThread(() -> {
+                    progressAi.setVisibility(View.GONE);
+                    Toast.makeText(MainDashboardActivity.this, "שגיאת AI: " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
     private void showComponentsDialog(List<MealComponent> components) {
         if (components == null || components.isEmpty()) return;
 

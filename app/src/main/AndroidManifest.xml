@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -17,9 +19,6 @@
             android:enabled="true"
             android:exported="false"/>
 
-        <activity
-            android:name=".WellcomeActivity"
-            android:exported="false" />
         <activity
             android:name=".MealHistoryActivity"
             android:exported="false" />
