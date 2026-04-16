@@ -39,39 +39,44 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
 
     @Override
     public void onBindViewHolder(@NonNull MealViewHolder holder, int position) {
-
         Meal current = mealList.get(position);
 
-        // ---------- תאריך ----------
-        if (position == 0 ||
-                !current.getDate().equals(mealList.get(position - 1).getDate())) {
+        // ---------- Meal Name ----------
+        // במקום current.getName(), פשוט נשים טקסט קבוע בינתיים:
+        holder.tvMealName.setText("Logged Meal");
+
+        // ---------- Date Logic (Show only if date changed) ----------
+        if (position == 0 || !current.getDate().equals(mealList.get(position - 1).getDate())) {
             holder.tvMealDate.setVisibility(View.VISIBLE);
             holder.tvMealDate.setText(current.getDate());
         } else {
             holder.tvMealDate.setVisibility(View.GONE);
         }
 
-        // ---------- חלבון וקלוריות ----------
-        holder.tvMealInfo.setText(
-                "חלבון: " + current.getProtein() + "g | קלוריות: " + current.getCalories()
-        );
+        // ---------- Protein & Calories (Separated for Design) ----------
+        holder.tvProteinInfo.setText("Protein: " + current.getProtein() + "g");
+        holder.tvCaloriesInfo.setText("Calories: " + current.getCalories());
 
-        // ---------- תמונה ----------
-        if (current.getBase64Image() != null) {
+        // ---------- Image Handling ----------
+        if (current.getBase64Image() != null && !current.getBase64Image().isEmpty()) {
             byte[] decodedBytes = Base64.decode(current.getBase64Image(), Base64.DEFAULT);
             Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
             holder.imgMealItem.setImageBitmap(bitmap);
+        } else {
+            // תמונת ברירת מחדל אם אין תמונה
+            holder.imgMealItem.setImageResource(android.R.color.transparent);
         }
 
-        // ---------- Favorite ----------
-        holder.imgFavorite.setAlpha(current.isFavorite() ? 1f : 0.3f);
+        // ---------- Favorite (Apple Style Alpha) ----------
+        // אם זה מועדף - צבע מלא, אם לא - שקיפות נמוכה מאוד
+        holder.imgFavorite.setAlpha(current.isFavorite() ? 1f : 0.2f);
 
         holder.imgFavorite.setOnClickListener(v -> {
             boolean newFav = !current.isFavorite();
             current.setFavorite(newFav);
-            holder.imgFavorite.setAlpha(newFav ? 1f : 0.3f);
+            holder.imgFavorite.setAlpha(newFav ? 1f : 0.2f);
 
-            // שמירה ב-Firestore
+            // Update Firestore
             String uid = FirebaseAuth.getInstance().getUid();
             if (uid != null && current.getId() != null) {
                 FirebaseFirestore.getInstance()
@@ -82,8 +87,14 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
                         .update("favorite", newFav);
             }
         });
-        // בתוך onBindViewHolder
 
+        // ---------- Relog Button (Add meal again) ----------
+        if (holder.btnRelog != null) {
+            holder.btnRelog.setOnClickListener(v -> {
+                // כאן תוכל להוסיף לוגיקה שמוסיפה את אותה ארוחה שוב להיום
+                // למשל: openRelogDialog(current);
+            });
+        }
     }
 
     // ✅ מתודה לעדכון הרשימה
@@ -98,16 +109,21 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
         return mealList.size();
     }
 
-    static class MealViewHolder extends RecyclerView.ViewHolder {
-        ImageView imgMealItem, imgFavorite;
-        TextView tvMealInfo, tvMealDate;
+    public static class MealViewHolder extends RecyclerView.ViewHolder {
+        // 1. הגדרת המשתנים החדשים
+        TextView tvMealName, tvMealDate, tvProteinInfo, tvCaloriesInfo;
+        ImageView imgMealItem, imgFavorite, btnRelog;
 
         public MealViewHolder(@NonNull View itemView) {
             super(itemView);
+            // 2. קישור ל-IDs החדשים מה-XML
+            tvMealName = itemView.findViewById(R.id.tvMealName);
+            tvMealDate = itemView.findViewById(R.id.tvMealDate);
+            tvProteinInfo = itemView.findViewById(R.id.tvProteinInfo);
+            tvCaloriesInfo = itemView.findViewById(R.id.tvCaloriesInfo);
             imgMealItem = itemView.findViewById(R.id.imgMealItem);
             imgFavorite = itemView.findViewById(R.id.imgFavorite);
-            tvMealInfo = itemView.findViewById(R.id.tvMealInfo);
-            tvMealDate = itemView.findViewById(R.id.tvMealDate);
+            btnRelog = itemView.findViewById(R.id.btnRelog);
         }
     }
 }

@@ -1,91 +1,124 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="#FFFFFF"
-    android:elevation="4dp"
-    android:layout_marginBottom="12dp"
-    android:layout_marginHorizontal="8dp"
-    android:layout_marginTop="4dp"
-    android:foreground="?android:attr/selectableItemBackground"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardBackgroundColor="#1C1C1E"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="0dp"
     android:clickable="true"
-    android:focusable="true">
-
-    <ImageView
-        android:id="@+id/imgMealItem"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:scaleType="centerCrop"
-        android:background="#EEEEEE"
-        android:contentDescription="Meal Image" />
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp">
+        android:orientation="vertical">
 
-        <LinearLayout
+        <ImageView
+            android:id="@+id/imgMealItem"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/tvMealName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="ארוחה לדוגמה"
-                android:textSize="18sp"
-                android:textColor="#000000"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:id="@+id/imgFavorite"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="6dp"
-                android:src="@android:drawable/btn_star_big_on"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:layout_marginEnd="4dp"/>
-
-            <ImageView
-                android:id="@+id/btnRelog"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:padding="6dp"
-                android:src="@android:drawable/ic_input_add"
-                android:background="?android:attr/selectableItemBackgroundBorderless" />
-
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvMealDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="2026-01-12"
-            android:textSize="12sp"
-            android:textColor="#888888"
-            android:visibility="gone"/>
-
-        <TextView
-            android:id="@+id/tvMealInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="חלבון: X גרם | קלוריות: Y"
-            android:paddingTop="4dp"
-            android:textSize="14sp"
-            android:textColor="#666666"/>
+            android:layout_height="180dp"
+            android:scaleType="centerCrop"
+            android:background="#2C2C2E"
+            android:contentDescription="Meal Image" />
 
         <LinearLayout
-            android:id="@+id/layoutComponents"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingTop="8dp" />
+            android:padding="16dp">
 
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tvMealName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/actionIcons"
+                    android:text="Meal Name"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:fontFamily="sans-serif-medium" />
+
+                <LinearLayout
+                    android:id="@+id/actionIcons"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/imgFavorite"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@android:drawable/btn_star_big_on"
+                        app:tint="#FFCC00" />
+
+                    <ImageView
+                        android:id="@+id/btnRelog"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@android:drawable/ic_input_add"
+                        app:tint="#007AFF" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvProteinInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Protein: 25g"
+                    android:textColor="#007AFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="8dp"
+                    android:text="•"
+                    android:textColor="#48484A" />
+
+                <TextView
+                    android:id="@+id/tvCaloriesInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Calories: 450"
+                    android:textColor="#FF2D55"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutComponents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvMealDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Oct 24, 2026"
+                android:textColor="#8E8E93"
+                android:textSize="12sp" />
+
+        </LinearLayout>
     </LinearLayout>
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

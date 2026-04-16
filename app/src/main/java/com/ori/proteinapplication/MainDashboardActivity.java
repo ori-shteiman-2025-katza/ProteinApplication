@@ -19,9 +19,13 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
+
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -81,6 +85,8 @@ public class MainDashboardActivity extends AppCompatActivity {
     private Button btnCaptureMeal;
     private static final int CAMERA_REQUEST = 2; // קוד מזהה למצלמה
     private static final int CAMERA_PERMISSION_CODE = 100;
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private ActivityResultLauncher<Intent> galleryLauncher;
 
     // מאגר ערכי תזונה נפוצים (per 100g) — אפשר להרחיב
     private final Map<String, float[]> nutrientPer100gMap = new HashMap<>();
@@ -117,18 +123,57 @@ public class MainDashboardActivity extends AppCompatActivity {
 
         // כפתור גלריה
         btnUploadMeal.setOnClickListener(v -> openFileChooser());
-
-        // כפתור מצלמה (עם בדיקת הרשאות)
+// כפתור מצלמה (עם בדיקת הרשאות)
         if (btnCaptureMeal != null) {
             btnCaptureMeal.setOnClickListener(v -> {
                 if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    // זה יפעיל את ה-cameraLauncher.launch(intent) החדש
                     openCamera();
                 } else {
                     requestPermissions(new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
                 }
             });
         }
+        // בתוך ה-onCreate שלך
+        uid = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
 
+        if (uid != null) {
+            firestoreDb = FirebaseFirestore.getInstance();
+            realtimeDbRef = FirebaseDatabase.getInstance().getReference("Users").child(uid);
+
+            // --- כאן תקרא לפונקציה החדשה ---
+            checkAndResetDaily();
+
+            loadUserGoals();
+        }
+// הגדרת חזרה מהמצלמה
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        imageBitmap = (Bitmap) result.getData().getExtras().get("data");
+                        handleImageSuccess();
+                    }
+                }
+        );
+
+        // הגדרת חזרה מהגלריה
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        imageUri = result.getData().getData();
+                        try {
+                            imageBitmap = uriToBitmap(imageUri);
+                            imageBitmap = resizeBitmapIfNeeded(imageBitmap, 1024);
+                            handleImageSuccess();
+                        } catch (IOException e) {
+                            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
         // 4. Helpers
         scheduleDailyReset();
         BottomNavigationHelper.setupBottomNavigation(
@@ -137,19 +182,34 @@ public class MainDashboardActivity extends AppCompatActivity {
                 R.id.nav_main
         );
     }
-
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                openCamera();
+            } else {
+                Toast.makeText(this, "Camera permission is required", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
     private void openCamera() {
         Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult(intent, CAMERA_REQUEST);
-        /*
-        // בדיקה שיש אפליקציית מצלמה במכשיר לפני שמפעילים
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            startActivityForResult(intent, CAMERA_REQUEST);
-        } else {
-            Toast.makeText(this, "לא נמצאה אפליקציית מצלמה", Toast.LENGTH_SHORT).show();
-        }
+        cameraLauncher.launch(intent);
+    }
 
-         */
+    private void openFileChooser() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        galleryLauncher.launch(intent);
+    }
+
+    // פונקציית עזר כדי לא לשכפל קוד
+    private void handleImageSuccess() {
+        if (imageBitmap != null) {
+            imgMealPreview.setImageBitmap(imageBitmap);
+            analyzeMealWithAI(imageBitmap);
+        }
     }
 
     private void scheduleDailyReset() {
@@ -191,6 +251,27 @@ public class MainDashboardActivity extends AppCompatActivity {
         // הערה חשובה: הסרתי את ה-if שבודק "alarm_set" כדי שהשינוי יתפוס מיד
         Log.d(TAG, "השעון הוגדר מחדש לחצות הלילה.");
     }
+    private void checkAndResetDaily() {
+        // SharedPreferences זה זיכרון קטן בתוך הטלפון
+        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        String lastResetDate = prefs.getString("lastResetDate", "");
+
+        // השגת התאריך של היום
+        String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        // אם התאריך השמור לא שווה לתאריך של היום - סימן שעבר לילה!
+        if (!lastResetDate.equals(todayDate)) {
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("currentProtein", 0);
+            updates.put("currentCalories", 0);
+
+            realtimeDbRef.updateChildren(updates).addOnSuccessListener(aVoid -> {
+                // שומרים שהיום כבר איפסנו, כדי שלא יאפס שוב בכל פעם שנכנסים
+                prefs.edit().putString("lastResetDate", todayDate).apply();
+                Log.d(TAG, "הנתונים אופסו בהצלחה ליום חדש");
+            });
+        }
+    }
     private void loadUserGoals() {
         if (uid == null) return;
 
@@ -231,12 +312,7 @@ public class MainDashboardActivity extends AppCompatActivity {
         progressCaloriesCircular.setProgress(caloriesGoal > 0 ? (int)((currentCalories/(float)caloriesGoal)*100) : 0);
     }
 
-    // Open gallery
-    private void openFileChooser() {
-        Intent intent = new Intent(Intent.ACTION_PICK);
-        intent.setType("image/*");
-        startActivityForResult(intent, PICK_IMAGE_REQUEST);
-    }
+
 
     // Convert uri -> Bitmap
     private Bitmap uriToBitmap(Uri uri) throws IOException {
@@ -257,54 +333,8 @@ public class MainDashboardActivity extends AppCompatActivity {
         return Bitmap.createScaledBitmap(bmp, Math.round(w*ratio), Math.round(h*ratio), true);
     }
 
-    // Receive selected image
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
 
-        if (resultCode == RESULT_OK) {
-            if (requestCode == PICK_IMAGE_REQUEST && data != null) {
-                // טיפול בגלריה
-                imageUri = data.getData();
-                if (imageUri == null) {
-                    Toast.makeText(this, "לא נמצאה תמונה", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                try {
-                    imageBitmap = uriToBitmap(imageUri);
-                    imageBitmap = resizeBitmapIfNeeded(imageBitmap, 1024);
-                } catch (IOException e) {
-                    Log.e(TAG, "uriToBitmap failed", e);
-                    Toast.makeText(this, "שגיאה בקריאת תמונה", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-            }
-            else if (requestCode == CAMERA_REQUEST && data != null) {
-                // טיפול במצלמה
-                imageBitmap = (Bitmap) data.getExtras().get("data");
-            }
 
-            // אם יש לנו ביטמפ (מכל מקור שהוא), נמשיך לניתוח
-            if (imageBitmap != null) {
-                imgMealPreview.setImageBitmap(imageBitmap);
-                analyzeMealWithAI(imageBitmap);
-            }
-        }
-
-    }
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == CAMERA_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                // המשתמש אישר! אפשר לפתוח מצלמה
-                openCamera();
-            } else {
-                // המשתמש סירב
-                Toast.makeText(this, "חובה לאשר מצלמה כדי לצלם ארוחה", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
     private void analyzeMealWithAI(Bitmap bitmap) {
         progressAi.setVisibility(View.VISIBLE);
 

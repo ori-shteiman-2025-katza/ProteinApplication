@@ -35,7 +35,7 @@ public class MealHistoryActivity extends AppCompatActivity {
 
     private RecyclerView recyclerMeals;
     private MealAdapter adapter;
-    private TextView tvDailySummary;
+    TextView tvDailyProtein, tvDailyCalories;
     private Button btnPickDate, btnToggleFavorites;
 
     private final List<Meal> allMeals = new ArrayList<>();
@@ -56,7 +56,8 @@ public class MealHistoryActivity extends AppCompatActivity {
             return;
         }
 
-        tvDailySummary = findViewById(R.id.tvDailySummary);
+        tvDailyProtein = findViewById(R.id.tvDailyProtein);
+        tvDailyCalories = findViewById(R.id.tvDailyCalories);
         btnPickDate = findViewById(R.id.btnPickDate);
         btnToggleFavorites = findViewById(R.id.btnToggleFavorites);
         bottomNavigationView = findViewById(R.id.bottom_navigation);
@@ -167,7 +168,8 @@ public class MealHistoryActivity extends AppCompatActivity {
 
         // במועדפים הסיכום היומי לא רלוונטי, אז נסתיר או נשנה אותו
         if (showFavoritesOnly) {
-            tvDailySummary.setText("מציג " + filteredMeals.size() + " ארוחות מועדפות");
+            tvDailyProtein.setText("מועדפים: " + filteredMeals.size());
+            tvDailyCalories.setText("");
         } else {
             updateDailySummary(filteredMeals);
         }
@@ -183,10 +185,8 @@ public class MealHistoryActivity extends AppCompatActivity {
             totalCalories += meal.getCalories();
         }
 
-        tvDailySummary.setText(
-                "חלבון כולל: " + totalProtein +
-                        " | קלוריות כוללות: " + totalCalories
-        );
+        tvDailyProtein.setText("חלבון: " + totalProtein + "g");
+        tvDailyCalories.setText("קלוריות: " + totalCalories);
     }
 
     // ---------- DatePicker ----------
@@ -228,10 +228,8 @@ public class MealHistoryActivity extends AppCompatActivity {
             Meal meal = meals.get(position);
 
             holder.tvMealName.setText("ארוחה " + (position + 1));
-            holder.tvMealTotals.setText(
-                    "חלבון: " + meal.getProtein() +
-                            " גרם | קלוריות: " + meal.getCalories()
-            );
+            holder.tvProteinInfo.setText("חלבון: " + meal.getProtein() + "g");
+            holder.tvCaloriesInfo.setText("קלוריות: " + meal.getCalories());
 
             Bitmap bitmap = decodeBase64(meal.getBase64Image());
             if (bitmap != null) holder.imgMealItem.setImageBitmap(bitmap);
@@ -278,7 +276,7 @@ public class MealHistoryActivity extends AppCompatActivity {
 
         static class MealViewHolder extends RecyclerView.ViewHolder {
             ImageView imgMealItem, imgFavorite;
-            TextView tvMealName, tvMealTotals;
+            TextView tvMealName, tvProteinInfo, tvCaloriesInfo;
             LinearLayout layoutComponents;
 
             public MealViewHolder(@NonNull View itemView) {
@@ -286,7 +284,8 @@ public class MealHistoryActivity extends AppCompatActivity {
                 imgMealItem = itemView.findViewById(R.id.imgMealItem);
                 imgFavorite = itemView.findViewById(R.id.imgFavorite);
                 tvMealName = itemView.findViewById(R.id.tvMealName);
-                tvMealTotals = itemView.findViewById(R.id.tvMealInfo);
+                tvProteinInfo = itemView.findViewById(R.id.tvProteinInfo);
+                tvCaloriesInfo = itemView.findViewById(R.id.tvCaloriesInfo);
                 layoutComponents = itemView.findViewById(R.id.layoutComponents);
             }
         }
