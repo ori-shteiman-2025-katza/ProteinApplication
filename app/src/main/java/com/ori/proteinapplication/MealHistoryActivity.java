@@ -17,6 +17,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -83,6 +85,80 @@ public class MealHistoryActivity extends AppCompatActivity {
                 bottomNavigationView,
                 R.id.nav_history
         );
+        // --- מנגנון החלקה למחיקה (Swipe to Delete) ---
+        ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int swipeDir) {
+                int position = viewHolder.getAdapterPosition();
+                Meal deletedMeal = filteredMeals.get(position);
+
+                // 1. מחיקה מהרשימה שעל המסך
+                filteredMeals.remove(position);
+                adapter.notifyItemRemoved(position);
+                allMeals.remove(deletedMeal);
+                updateDailySummary(filteredMeals);
+
+                String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                if (uid != null && deletedMeal.getId() != null) {
+
+                    // 2. מחיקה מרשימת הארוחות בענן (Firestore)
+                    FirebaseFirestore.getInstance()
+                            .collection("Users")
+                            .document(uid)
+                            .collection("Meals")
+                            .document(deletedMeal.getId())
+                            .delete();
+
+                    // 3. עדכון מדדי היום ב-Realtime DB (רק אם הארוחה היא מהיום!)
+                    String today = LocalDate.now().toString();
+                    if (deletedMeal.getDate().equals(today)) {
+                        com.google.firebase.database.DatabaseReference realtimeDbRef =
+                                com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Users").child(uid);
+
+                        realtimeDbRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot snapshot) {
+                                int currentProtein = 0;
+                                int currentCalories = 0;
+
+                                if (snapshot.child("currentProtein").getValue() != null) {
+                                    currentProtein = ((Number) snapshot.child("currentProtein").getValue()).intValue();
+                                }
+                                if (snapshot.child("currentCalories").getValue() != null) {
+                                    currentCalories = ((Number) snapshot.child("currentCalories").getValue()).intValue();
+                                }
+
+                                // מחסרים את מה שנמחק (ומוודאים שלא יורד בטעות מתחת ל-0)
+                                int newProtein = Math.max(0, currentProtein - deletedMeal.getProtein());
+                                int newCalories = Math.max(0, currentCalories - deletedMeal.getCalories());
+
+                                Map<String, Object> updates = new HashMap<>();
+                                updates.put("currentProtein", newProtein);
+                                updates.put("currentCalories", newCalories);
+
+                                realtimeDbRef.updateChildren(updates).addOnSuccessListener(aVoid ->
+                                        Toast.makeText(MealHistoryActivity.this, "נמחק ועודכן במסך הראשי", Toast.LENGTH_SHORT).show()
+                                );
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {}
+                        });
+                    } else {
+                        // אם מחקנו ארוחה ישנה, רק מציגים הודעה
+                        Toast.makeText(MealHistoryActivity.this, "ארוחה ישנה נמחקה", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        };
+
+        new ItemTouchHelper(simpleItemTouchCallback).attachToRecyclerView(recyclerMeals);
+        // ----------------------------------------------
     }
 
     // ---------- Firestore ----------

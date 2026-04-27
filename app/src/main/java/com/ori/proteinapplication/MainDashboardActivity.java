@@ -87,6 +87,7 @@ public class MainDashboardActivity extends AppCompatActivity {
     private static final int CAMERA_PERMISSION_CODE = 100;
     private ActivityResultLauncher<Intent> cameraLauncher;
     private ActivityResultLauncher<Intent> galleryLauncher;
+    private TextView tvStreak;
 
     // מאגר ערכי תזונה נפוצים (per 100g) — אפשר להרחיב
     private final Map<String, float[]> nutrientPer100gMap = new HashMap<>();
@@ -98,7 +99,7 @@ public class MainDashboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_dashboard);
 
-        // 1. findViews - הוספתי כאן את הקישור לכפתור המצלמה
+        tvStreak = findViewById(R.id.tvStreak);
         imgMealPreview = findViewById(R.id.imgMeal);
         tvProteinProgress = findViewById(R.id.tvProteinProgress);
         tvCaloriesProgress = findViewById(R.id.tvCaloriesProgress);
@@ -181,6 +182,7 @@ public class MainDashboardActivity extends AppCompatActivity {
                 bottomNavigationView,
                 R.id.nav_main
         );
+        checkAndUpdateStreak();
     }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -306,7 +308,14 @@ public class MainDashboardActivity extends AppCompatActivity {
     }
 
     private void updateDashboard() {
-        tvProteinProgress.setText(currentProtein + " / " + proteinGoal + " גרם חלבון");
+        // --- חגיגת יעד חלבון ---
+        if (proteinGoal > 0 && currentProtein >= proteinGoal) {
+            tvProteinProgress.setText("🏆 יעד הושג! " + currentProtein + " / " + proteinGoal);
+            tvProteinProgress.setTextColor(android.graphics.Color.parseColor("#4CAF50")); // ירוק
+        } else {
+            tvProteinProgress.setText(currentProtein + " / " + proteinGoal + " גרם חלבון");
+            tvProteinProgress.setTextColor(android.graphics.Color.WHITE); // או הצבע הרגיל שלך
+        }
         tvCaloriesProgress.setText(currentCalories + " / " + caloriesGoal + " קלוריות");
         progressProteinCircular.setProgress(proteinGoal > 0 ? (int)((currentProtein/(float)proteinGoal)*100) : 0);
         progressCaloriesCircular.setProgress(caloriesGoal > 0 ? (int)((currentCalories/(float)caloriesGoal)*100) : 0);
@@ -576,7 +585,10 @@ public class MainDashboardActivity extends AppCompatActivity {
                     update.put("currentProtein", currentProtein);
                     update.put("currentCalories", currentCalories);
                     realtimeDbRef.updateChildren(update)
-                            .addOnSuccessListener(unused -> updateDashboard())
+                            .addOnSuccessListener(unused -> {
+                                updateDashboard();
+                                checkAndUpdateStreak(); // <--- הוספנו את זה כאן!
+                            })
                             .addOnFailureListener(ex -> Log.w(TAG, "realtime update fail", ex));
                 })
                 .addOnFailureListener(e -> {
@@ -611,59 +623,36 @@ public class MainDashboardActivity extends AppCompatActivity {
     // 1. פונקציה שמציגה את החלונית להוספה ידנית
 
     // 2. פונקציה לחישוב הרצף
-    private void updateStreak(String userId) {
-        DocumentReference userRef = FirebaseFirestore.getInstance().collection("users").document(userId);
+    private void checkAndUpdateStreak() {
+        if (uid == null) return;
+        DocumentReference userRef = FirebaseFirestore.getInstance().collection("Users").document(uid);
 
-        userRef.get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists()) {
-                long lastLogDate = 0;
-                if (documentSnapshot.contains("lastLogDate")) {
-                    lastLogDate = documentSnapshot.getLong("lastLogDate");
-                }
+        userRef.get().addOnSuccessListener(doc -> {
+            long currentStreak = doc.contains("currentStreak") ? doc.getLong("currentStreak") : 0;
+            String lastLogDate = doc.contains("lastLogDate") ? doc.getString("lastLogDate") : "";
 
-                long currentStreak = 0;
-                if (documentSnapshot.contains("currentStreak")) {
-                    currentStreak = documentSnapshot.getLong("currentStreak");
-                }
+            // שימוש בתאריכים פשוטים במקום חישובי מילישניות מסובכים
+            String today = LocalDate.now().toString();
+            String yesterday = LocalDate.now().minusDays(1).toString();
 
-                // חישוב תאריכים (איפוס לשעה 00:00 כדי להשוות ימים בלבד)
-                Calendar today = Calendar.getInstance();
-                resetTime(today);
-
-                Calendar lastLogin = Calendar.getInstance();
-                lastLogin.setTimeInMillis(lastLogDate);
-                resetTime(lastLogin);
-
-                long diffInMillis = today.getTimeInMillis() - lastLogin.getTimeInMillis();
-                long daysDiff = TimeUnit.MILLISECONDS.toDays(diffInMillis);
-
-                if (daysDiff == 0) {
-                    // המשתמש כבר הזין היום - לא עושים כלום
-                    return;
-                } else if (daysDiff == 1) {
-                    // הזין אתמול - מגדילים רצף
-                    currentStreak++;
+            if (!lastLogDate.equals(today)) {
+                if (lastLogDate.equals(yesterday)) {
+                    currentStreak++; // הזין אתמול, הרצף גדל!
                 } else {
-                    // עברו יותר מימים, או שזו פעם ראשונה - מאפסים ל-1
-                    currentStreak = 1;
+                    currentStreak = 1; // פספס יום או פעם ראשונה, מתחילים מ-1
                 }
 
-                // עדכון הנתונים בשרת
+                // שומרים בשרת שמעודכן להיום
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("currentStreak", currentStreak);
-                updates.put("lastLogDate", System.currentTimeMillis());
-
+                updates.put("lastLogDate", today);
                 userRef.update(updates);
             }
-        });
-    }
 
-    // פונקציית עזר קטנה לאיפוס שעות (לשים למטה בקובץ)
-    private void resetTime(Calendar calendar) {
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
+            // עדכון המסך בסוף התהליך
+            if (tvStreak != null) {
+                tvStreak.setText("🔥 " + currentStreak + " ימים");
+            }
+        }).addOnFailureListener(e -> Log.e(TAG, "שגיאה בטעינת Streak", e));
     }
-
-}
+    }
