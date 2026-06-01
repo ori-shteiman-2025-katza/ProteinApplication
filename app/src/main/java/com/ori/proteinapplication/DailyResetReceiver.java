@@ -49,7 +49,7 @@ public class DailyResetReceiver extends BroadcastReceiver {
         ref.updateChildren(reset)
                 .addOnSuccessListener(unused -> {
 
-                    // ✅ רק אם האיפוס הצליח
+                    //  רק אם האיפוס הצליח
 
                     sendDailySummaryNotification(context);
 
@@ -58,8 +58,8 @@ public class DailyResetReceiver extends BroadcastReceiver {
                             .apply();
                 })
                 .addOnFailureListener(e -> {
-                    // ❌ לא איפס – לא שולחים נוטיפיקציה
-                    // ❌ לא מעדכנים תאריך
+                    //  לא איפס – לא שולחים נוטיפיקציה
+                    //  לא מעדכנים תאריך
                     Log.e("DailyResetReceiver", "Daily reset failed", e);
                 });
         //TODO if failed
